@@ -24,8 +24,6 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-st.title("")  # Remove o título básico antigo
-
 # === Carrega planilha ===
 df = pd.read_excel("kits.xlsx")
 
@@ -40,17 +38,16 @@ if len(kits_filtrados) == 0:
 kit_selecionado = st.selectbox("Selecione um kit:", kits_filtrados['DESCRICAO'])
 kit = kits_filtrados[kits_filtrados['DESCRICAO'] == kit_selecionado].iloc[0]
 
-# Coleta informações principais do kit
+# Coleta informações principais
 codigo_kit = str(kit.get('CODIGO')).strip()
 valor_kit = float(kit.get('A VISTA', 0))
 peso_kit = float(kit.get('PESO UND', 0))
 link_kit = kit.get('LINK_KIT', '')
 
-# Dados do cliente e desconto
+# Dados do cliente
 nome_cliente = st.text_input("Nome do cliente")
 desc_aplicado = st.slider("Desconto aplicado (%)", 0, 12, 0)
-
-valor_com_desc = valor_kit * (1 - desc_aplicado/100)
+valor_com_desc = valor_kit * (1 - desc_aplicado / 100)
 
 # Frete
 distancia_total = st.number_input(
@@ -58,102 +55,108 @@ distancia_total = st.number_input(
     min_value=0, value=0, step=1
 )
 valor_frete = 1129 * (peso_kit / 1000)
-if distancia_total > 200:
-    km_excedente = distancia_total - 200
-    valor_frete_adicional = km_excedente * 5.5
-else:
-    valor_frete_adicional = 0.0
+valor_frete_adicional = (distancia_total - 200) * 5.5 if distancia_total > 200 else 0.0
 f_total = valor_frete + valor_frete_adicional
 total_com_frete = valor_com_desc + f_total
 
 # Estimativa casa pronta
 padrao_aframe = re.compile(r"a[-\s]?frame", re.IGNORECASE)
-if padrao_aframe.search(kit_selecionado):
-    estimativa_casa_pronta = valor_kit * 1.85
-else:
-    estimativa_casa_pronta = valor_kit * 1.90
+estimativa_casa_pronta = valor_kit * (1.85 if padrao_aframe.search(kit_selecionado) else 1.90)
 
 # Formatação de moeda
 def fmoeda(v):
     return f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
 
-# === Busca da planta baixa na pasta imagens ===
+# Busca planta baixa
 extensoes = [".jpg", ".png", ".jpeg"]
 plantas_encontradas = []
 
-# Planta principal: planta-XXX
 for ext in extensoes:
     path1 = os.path.join("imagens", f"planta-{codigo_kit}{ext}")
     if os.path.exists(path1):
         plantas_encontradas.append(("Principal", path1))
         break
 
-# Planta opcional: planta1-XXX
 for ext in extensoes:
     path2 = os.path.join("imagens", f"planta1-{codigo_kit}{ext}")
     if os.path.exists(path2):
         plantas_encontradas.append(("Opção 2", path2))
         break
 
-st.markdown("### Planta Baixa do Kit (para download)")
+# Exibir plantas baixas
+st.markdown("### 📐 Planta Baixa Disponível para Download")
 if plantas_encontradas:
     for label, img_path in plantas_encontradas:
+        nome_arquivo = os.path.basename(img_path)
+        st.success(f"{label}: {nome_arquivo} disponível.")
         with open(img_path, "rb") as fimg:
             st.download_button(
                 label=f"📥 Baixar Planta Baixa ({label})",
                 data=fimg,
-                file_name=os.path.basename(img_path),
+                file_name=nome_arquivo,
                 mime="image/jpeg" if img_path.endswith(".jpg") or img_path.endswith(".jpeg") else "image/png"
             )
 else:
-    st.warning("⚠️ Planta baixa não encontrada para esse kit.")
+    st.warning("⚠️ Nenhuma planta baixa encontrada para este kit no momento.")
 
-# Geração da mensagem
+# Geração da proposta
 if st.button("Gerar Mensagem de Proposta para WhatsApp"):
+    if not nome_cliente.strip():
+        st.error("⚠️ Por favor, preencha o nome do cliente antes de gerar a proposta.")
+        st.stop()
+
     data_hoje = datetime.now().strftime("%d/%m/%Y")
-    mensagem = f"""*Proposta Comercial MCPF Bahia*
-Data da Proposta: *{data_hoje}*
-Cliente: *{nome_cliente}*
-________________________________________
-🏠 *MODELO SELECIONADO E VALORES*
-• *Modelo do Kit:* {kit_selecionado}
-• *Valor do Kit:* {fmoeda(valor_kit)}
-• *Desconto Aplicado:* {desc_aplicado} %
-• *Valor com Desconto:* {fmoeda(valor_com_desc)}
-• *Valor do Frete:* {fmoeda(valor_frete)} / *Frete Adicional:* {fmoeda(valor_frete_adicional)} / *Total Frete* {fmoeda(f_total)}
-• *Total com Frete:* {fmoeda(total_com_frete)}
-*O Frete deverá ser pago diretamente à transportadora em até 48hs antes do embarque.* 
-• *Estimativa Casa Pronta:* {fmoeda(estimativa_casa_pronta)}
-________________________________________
-✅ *O QUE ESTÁ INCLUSO NO KIT*
-Estrutura completa em madeira Pinus autoclavada
-Paredes, forros e estrutura do telhado
-Portas e janelas padrão do projeto
-Ripas, canaletas, rodapés, molduras, ferragens
-*Manual completo de montagem e suporte técnico da equipe de engenheiros* 
-Você pode contratar um carpinteiro local (opção mais econômica), ou um parceiro indicado. Se preferir, consulte também a opção *Chave na Mão*, com a casa pronta no local.
-________________________________________
-ℹ️ *OBSERVAÇÕES IMPORTANTES*
-*Portas personalizadas, telhas, stain, vidros e mão de obra NÃO estão inclusos no kit de madeiramento.*
-Prazo de entrega estimado: 30 a 60 dias após assinatura do contrato e confirmação do pagamento. 
 
-OBS: Voce pode contratar um carpinteiro local ou utilizar um de nossos parceiros. Essa opcao costuma ser mais economica, pois evita custos com deslocamentos tecnicos e visitas a obra. Mas, se preferir mais comodidade, oferecemos tambem a opcao *CHAVE NA MAO* com a casa entregue pronta no local. Consulte as condicoes dessa modalidade. 
+    mensagem = f"""*📄 PROPOSTA COMERCIAL - MCPF BAHIA*
+📅 Data: *{data_hoje}*
+👤 Cliente: *{nome_cliente}*
 
-*Garantia de 15 anos contra pragas e apodrecimento da madeira*
-*Proposta válida por 7 dias corridos.*
-________________________________________
-🔗 *LINK DO KIT*
-{link_kit}
-________________________________________
+━━━━━━━━━━━━━━━━━━━━━━
+🏡 *MODELO SELECIONADO*
+• Modelo: *{kit_selecionado}*
+• Valor do Kit: *{fmoeda(valor_kit)}*
+• Desconto Aplicado: *{desc_aplicado}%*
+• Valor com Desconto: *{fmoeda(valor_com_desc)}*
+
+🚚 *FRETE*
+• Frete Base: *{fmoeda(valor_frete)}*
+• Adicional (acima de 200km): *{fmoeda(valor_frete_adicional)}*
+• Total do Frete: *{fmoeda(f_total)}*
+• Total com Frete: *{fmoeda(total_com_frete)}*
+
+📌 *O frete é pago diretamente à transportadora até 48h antes do embarque.*
+
+🔧 *Estimativa da casa pronta no local:* *{fmoeda(estimativa_casa_pronta)}*
+
+━━━━━━━━━━━━━━━━━━━━━━
+📦 *O QUE ESTÁ INCLUSO NO KIT*
+✅ Estrutura completa em madeira Pinus autoclavada (resistência garantida)
+✅ Paredes, forros e estrutura do telhado
+✅ Portas e janelas padrão do projeto
+✅ Ripas, canaletas, rodapés, molduras, ferragens
+✅ Manual de montagem + suporte técnico
+
+📘 *Montagem facilitada:* qualquer carpinteiro experiente consegue montar com o manual. Ou, se preferir, indicamos parceiros. Para mais conforto, consulte a opção *Chave na Mão*.
+
+━━━━━━━━━━━━━━━━━━━━━━
+📌 *INFORMAÇÕES IMPORTANTES*
+• Itens não inclusos: telhas, vidros, stain, portas personalizadas e mão de obra.
+• Prazo de entrega: *30 a 60 dias* após assinatura do contrato e confirmação do pagamento.
+• *Garantia de 15 anos contra pragas e apodrecimento da madeira.*
+• Proposta válida por *7 dias corridos*.
 """
+
     if plantas_encontradas:
-        mensagem += "\n📐 PLANTA BAIXA DO KIT: disponível para download junto com a proposta.\n"
+        mensagem += "\n📐 *Planta Baixa Disponível para Download*\n"
+    else:
+        mensagem += "\n❌ Planta Baixa não disponível no momento.\n"
+
+    mensagem += f"\n🔗 *Acesse o kit completo:* {link_kit}"
 
     st.markdown("### 📝 Copie e envie para o WhatsApp:")
-    st.text_area("Mensagem pronta:", value=mensagem, height=400)
+    st.text_area("Mensagem pronta:", value=mensagem, height=500)
 
-    # Link para WhatsApp Web com mensagem já preenchida
-    st.markdown("---")
     url_whatsapp = f"https://api.whatsapp.com/send?text={quote(mensagem)}"
+    st.markdown("---")
     st.markdown(f"[👉 Enviar mensagem via WhatsApp Web]({url_whatsapp})", unsafe_allow_html=True)
     st.info("Clique para abrir o WhatsApp Web com a mensagem pronta. Basta colar o número do cliente e enviar.")
