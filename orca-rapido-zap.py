@@ -113,9 +113,10 @@ if st.button("Gerar Mensagem de Proposta para WhatsApp"):
 
 ━━━━━━━━━━━━━━━━━━━━━━
 🏡 *MODELO SELECIONADO*
-• Modelo: *{kit_selecionado}*
+• *Modelo*: {kit_selecionado} *
+
 • Valor do Kit: *{fmoeda(valor_kit)}*
-• Desconto Aplicado: *{desc_aplicado}%*
+• Desconto Aplicado: *{desc_aplicado} %*
 • Valor com Desconto: *{fmoeda(valor_com_desc)}*
 
 🚚 *FRETE*
@@ -136,7 +137,11 @@ if st.button("Gerar Mensagem de Proposta para WhatsApp"):
 ✅ Ripas, canaletas, rodapés, molduras, ferragens
 ✅ Manual de montagem + suporte técnico
 
-📘 *Montagem facilitada:* qualquer carpinteiro experiente consegue montar com o manual. Ou, se preferir, indicamos parceiros. Para mais conforto, consulte a opção *Chave na Mão*.
+📘 *Montagem descomplicada:* qualquer carpinteiro experiente, mesmo que nunca tenha montado um kit nosso, conseguirá executar a montagem com facilidade.
+
+🔧 Isso porque fornecemos um *manual detalhado, passo a passo*, além de *suporte técnico direto da nossa equipe de engenharia* durante toda a execução da obra.
+
+⚙️ *Não quer se envolver com a obra?* Também oferecemos a opção *Chave na Mão*, com a casa entregue pronta no local. Consulte as condições dessa modalidade.
 
 ━━━━━━━━━━━━━━━━━━━━━━
 📌 *INFORMAÇÕES IMPORTANTES*
