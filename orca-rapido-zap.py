@@ -61,7 +61,7 @@ total_com_frete = valor_com_desc + f_total
 
 # Estimativa casa pronta
 padrao_aframe = re.compile(r"a[-\s]?frame", re.IGNORECASE)
-estimativa_casa_pronta = valor_kit * (1.85 if padrao_aframe.search(kit_selecionado) else 1.90)
+estimativa_casa_pronta = valor_kit * (1,90 if padrao_aframe.search(kit_selecionado) else 2,10.)
 
 # Formatação de moeda
 def fmoeda(v):
