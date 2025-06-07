@@ -42,6 +42,7 @@ kit = kits_filtrados[kits_filtrados['DESCRICAO'] == kit_selecionado].iloc[0]
 codigo_kit = str(kit.get('CODIGO')).strip()
 valor_kit = float(kit.get('A VISTA', 0))
 peso_kit = float(kit.get('PESO UND', 0))
+area_kit = float(str(kit.get('AREA', 0)).replace(",", ".").strip())
 link_kit = kit.get('LINK_KIT', '')
 
 # Dados do cliente
@@ -59,13 +60,53 @@ valor_frete_adicional = (distancia_total - 200) * 5.5 if distancia_total > 200 e
 f_total = valor_frete + valor_frete_adicional
 total_com_frete = valor_com_desc + f_total
 
-# Estimativa casa pronta
-padrao_aframe = re.compile(r"a[-\s]?frame", re.IGNORECASE)
-estimativa_casa_pronta = valor_kit * (1,90 if padrao_aframe.search(kit_selecionado) else 2,10.)
-
-# Formatação de moeda
+# FUNÇÃO AUXILIAR DE FORMATAÇÃO DE MOEDA
 def fmoeda(v):
-    return f"R$ {v:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    try:
+        if v is None or v == '' or (isinstance(v, float) and pd.isna(v)):
+            return "Cálculo para o modelo não gerado"
+        return f"R$ {float(v):,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
+    except Exception:
+        return "Cálculo para o modelo não gerado"
+
+# FUNÇÃO PARA CALCULAR CHAVE NA MÃO (só kits principais)
+def calcular_chave_na_mao(descricao, area):
+    desc = str(descricao).lower()
+    # Palavras que indicam adicionais/acessórios
+    adicionais = [
+        "stain", "telha", "forro", "assoalho", "parede dupla", 
+        "externo", "impregnante"
+    ]
+
+    # Camping 1, 2, 3
+    if re.search(r"camping\s*1", desc):
+        return area * 2200
+    elif re.search(r"camping\s*2", desc):
+        return area * 2400
+    elif re.search(r"camping\s*3", desc):
+        return area * 2400
+    # A-frame
+    elif "a-frame" in desc or "aframe" in desc:
+        if area <= 60:
+            return area * 1700
+        else:
+            return area * 1650
+    # Kits principais (KIT, não sendo Camping, A-frame e não conter adicionais)
+    elif ("kit" in desc and not any(x in desc for x in ["camping", "a-frame", "aframe"]) 
+          and not any(adicional in desc for adicional in adicionais)):
+        if area <= 42:
+            return area * 2000
+        else:
+            return area * 1900
+    # Pop, Pousada Pop, Tiny House (fora os adicionais)
+    elif ("pop" in desc or "pousada pop" in desc or "tiny house" in desc) and not any(adicional in desc for adicional in adicionais):
+        if area <= 42:
+            return area * 2000
+        else:
+            return area * 1900
+    return None
+
+estimativa_casa_pronta = calcular_chave_na_mao(kit_selecionado, area_kit)
 
 # Busca planta baixa
 extensoes = [".jpg", ".png", ".jpeg"]
@@ -155,7 +196,11 @@ if st.button("Gerar Mensagem de Proposta para WhatsApp"):
     else:
         mensagem += "\n❌ Planta Baixa não disponível no momento.\n"
 
-    mensagem += f"\n🔗 *Acesse o kit completo:* {link_kit}"
+    # Adiciona o link do kit se houver
+    if link_kit and str(link_kit).strip().lower() not in ['nan', 'none', '']:
+        mensagem += f"\n🔗 *Acesse o kit completo:* {link_kit}"
+    else:
+        mensagem += "\n❌ Link do kit não disponível."
 
     st.markdown("### 📝 Copie e envie para o WhatsApp:")
     st.text_area("Mensagem pronta:", value=mensagem, height=500)
