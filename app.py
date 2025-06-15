@@ -104,8 +104,8 @@ def gerar_mensagem(nome_cliente, kit_selecionado, valor_kit, desc_aplicado,
 ✅ Ripas, canaletas, molduras, ferragens  
 ✅ Manual de montagem + suporte técnico
 
-📘 *Montagem descomplicada:*  
-Mesmo carpinteiros sem experiência prévia conseguem montar com nosso manual detalhado e suporte técnico da equipe de engenharia.
+📘 *Montagem descomplicada:*
+Carpinteiros experientes, mesmo sem prática em chalés de madeira, montam com facilidade usando nosso manual técnico e suporte da engenharia.
 
 🔧 *Quer evitar dor de cabeça com obra?*  
 Temos a opção *Chave na Mão*. Consulte condições!
