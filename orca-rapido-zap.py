@@ -1,5 +1,5 @@
-
 import streamlit as st
+import streamlit.components.v1 as components
 import pandas as pd
 from datetime import datetime
 from urllib.parse import quote
@@ -82,6 +82,8 @@ def gerar_mensagem(nome_cliente, kit_selecionado, valor_kit, desc_aplicado,
 2️⃣ Cartão de Crédito:
 • Até 6x sem juros: *{fmoeda(valor_kit / 6)}* por parcela (valor cheio: *{fmoeda(valor_kit)}*)
 • Até 18x com juros da operadora
+
+🏠 *Estimativa de valor para Casa Pronta:* *{fmoeda(estimativa_casa_pronta)}*
 
 🚚 *FRETE*
 • Base: *{fmoeda(valor_frete)}*
@@ -196,7 +198,33 @@ if st.button("Gerar Proposta para WhatsApp"):
     msg = gerar_mensagem(nome_cliente, kit_selecionado, valor_kit, desc_aplicado, valor_com_desc,
                          valor_frete, valor_frete_adicional, f_total, total_com_frete,
                          area_kit, estimativa_casa_pronta, plantas_encontradas, link_kit)
+
     st.markdown("### 📝 Mensagem para WhatsApp")
     st.text_area("Mensagem gerada:", value=msg, height=600)
+
+    # ✅ Botão copiar funcional com feedback
+    components.html(f"""
+        <textarea id="mensagem_whatsapp" style="display:none;">{msg}</textarea>
+        <button id="botao_copiar" onclick="copiarMensagem()"
+                style="margin-top: 10px; padding: 8px 16px; background-color: #fcd34d;
+                       border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">
+            📋 Copiar mensagem
+        </button>
+
+        <script>
+            function copiarMensagem() {{
+                const texto = document.getElementById("mensagem_whatsapp").value;
+                navigator.clipboard.writeText(texto).then(() => {{
+                    const botao = document.getElementById("botao_copiar");
+                    const textoOriginal = botao.innerText;
+                    botao.innerText = "✅ Copiado!";
+                    setTimeout(() => {{
+                        botao.innerText = textoOriginal;
+                    }}, 2000);
+                }});
+            }}
+        </script>
+    """, height=100)
+
     url_whatsapp = f"https://api.whatsapp.com/send?text={quote(msg)}"
     st.markdown(f"[👉 Enviar pelo WhatsApp Web]({url_whatsapp})", unsafe_allow_html=True)
