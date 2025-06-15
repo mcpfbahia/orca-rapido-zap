@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 from datetime import datetime
@@ -24,43 +25,10 @@ st.markdown("""
     </div>
 """, unsafe_allow_html=True)
 
-# === Carrega planilha ===
-df = pd.read_excel("kits.xlsx")
+@st.cache_data
+def carregar_planilha():
+    return pd.read_excel("kits.xlsx")
 
-# === Busca do kit ===
-busca = st.text_input("Digite parte do nome do kit:")
-kits_filtrados = df[df['DESCRICAO'].str.contains(busca, case=False, na=False)]
-
-if len(kits_filtrados) == 0:
-    st.info("Digite parte do nome do kit para buscar.")
-    st.stop()
-
-kit_selecionado = st.selectbox("Selecione um kit:", kits_filtrados['DESCRICAO'])
-kit = kits_filtrados[kits_filtrados['DESCRICAO'] == kit_selecionado].iloc[0]
-
-# Coleta informações principais
-codigo_kit = str(kit.get('CODIGO')).strip()
-valor_kit = float(kit.get('A VISTA', 0))
-peso_kit = float(kit.get('PESO UND', 0))
-area_kit = float(str(kit.get('AREA', 0)).replace(",", ".").strip())
-link_kit = kit.get('LINK_KIT', '')
-
-# Dados do cliente
-nome_cliente = st.text_input("Nome do cliente")
-desc_aplicado = st.slider("Desconto aplicado (%)", 0, 12, 0)
-valor_com_desc = valor_kit * (1 - desc_aplicado / 100)
-
-# Frete
-distancia_total = st.number_input(
-    "Distância total (em km) da franquia até o local da obra:",
-    min_value=0, value=0, step=1
-)
-valor_frete = 1129 * (peso_kit / 1000)
-valor_frete_adicional = (distancia_total - 200) * 5.5 if distancia_total > 200 else 0.0
-f_total = valor_frete + valor_frete_adicional
-total_com_frete = valor_com_desc + f_total
-
-# FUNÇÃO AUXILIAR DE FORMATAÇÃO DE MOEDA
 def fmoeda(v):
     try:
         if v is None or v == '' or (isinstance(v, float) and pd.isna(v)):
@@ -69,143 +37,166 @@ def fmoeda(v):
     except Exception:
         return "Cálculo para o modelo não gerado"
 
-# FUNÇÃO PARA CALCULAR CHAVE NA MÃO (só kits principais)
 def calcular_chave_na_mao(descricao, area):
     desc = str(descricao).lower()
-    # Palavras que indicam adicionais/acessórios
-    adicionais = [
-        "stain", "telha", "forro", "assoalho", "parede dupla", 
-        "externo", "impregnante"
-    ]
-
-    # Camping 1, 2, 3
+    adicionais = ["stain", "telha", "forro", "assoalho", "parede dupla", "externo", "impregnante"]
     if re.search(r"camping\s*1", desc):
         return area * 2200
     elif re.search(r"camping\s*2", desc):
         return area * 2400
     elif re.search(r"camping\s*3", desc):
         return area * 2400
-    # A-frame
     elif "a-frame" in desc or "aframe" in desc:
-        if area <= 60:
-            return area * 1700
-        else:
-            return area * 1650
-    # Kits principais (KIT, não sendo Camping, A-frame e não conter adicionais)
-    elif ("kit" in desc and not any(x in desc for x in ["camping", "a-frame", "aframe"]) 
+        return area * 1700 if area <= 60 else area * 1650
+    elif ("kit" in desc and not any(x in desc for x in ["camping", "a-frame", "aframe"])
           and not any(adicional in desc for adicional in adicionais)):
-        if area <= 42:
-            return area * 2000
-        else:
-            return area * 1900
-    # Pop, Pousada Pop, Tiny House (fora os adicionais)
+        return area * 2000 if area <= 42 else area * 1900
     elif ("pop" in desc or "pousada pop" in desc or "tiny house" in desc) and not any(adicional in desc for adicional in adicionais):
-        if area <= 42:
-            return area * 2000
-        else:
-            return area * 1900
+        return area * 2000 if area <= 42 else area * 1900
     return None
 
-estimativa_casa_pronta = calcular_chave_na_mao(kit_selecionado, area_kit)
-
-# Busca planta baixa
-extensoes = [".jpg", ".png", ".jpeg"]
-plantas_encontradas = []
-
-for ext in extensoes:
-    path1 = os.path.join("imagens", f"planta-{codigo_kit}{ext}")
-    if os.path.exists(path1):
-        plantas_encontradas.append(("Principal", path1))
-        break
-
-for ext in extensoes:
-    path2 = os.path.join("imagens", f"planta1-{codigo_kit}{ext}")
-    if os.path.exists(path2):
-        plantas_encontradas.append(("Opção 2", path2))
-        break
-
-# Exibir plantas baixas
-st.markdown("### 📐 Planta Baixa Disponível para Download")
-if plantas_encontradas:
-    for label, img_path in plantas_encontradas:
-        nome_arquivo = os.path.basename(img_path)
-        st.success(f"{label}: {nome_arquivo} disponível.")
-        with open(img_path, "rb") as fimg:
-            st.download_button(
-                label=f"📥 Baixar Planta Baixa ({label})",
-                data=fimg,
-                file_name=nome_arquivo,
-                mime="image/jpeg" if img_path.endswith(".jpg") or img_path.endswith(".jpeg") else "image/png"
-            )
-else:
-    st.warning("⚠️ Nenhuma planta baixa encontrada para este kit no momento.")
-
-# Geração da proposta
-if st.button("Gerar Mensagem de Proposta para WhatsApp"):
-    if not nome_cliente.strip():
-        st.error("⚠️ Por favor, preencha o nome do cliente antes de gerar a proposta.")
-        st.stop()
+def gerar_mensagem(nome_cliente, kit_selecionado, valor_kit, desc_aplicado,
+                   valor_com_desc, valor_frete, valor_frete_adicional,
+                   f_total, total_com_frete, area_kit, estimativa_casa_pronta,
+                   plantas_encontradas, link_kit):
 
     data_hoje = datetime.now().strftime("%d/%m/%Y")
-
     mensagem = f"""*📄 PROPOSTA COMERCIAL - MCPF BAHIA*
 📅 Data: *{data_hoje}*
 👤 Cliente: *{nome_cliente}*
 
 ━━━━━━━━━━━━━━━━━━━━━━
 🏡 *MODELO SELECIONADO*
-• *Modelo*: {kit_selecionado}
+• *Modelo*: {kit_selecionado.strip()}
 • Valor do Kit: *{fmoeda(valor_kit)}*
-• Desconto Aplicado: {desc_aplicado} %
-• Valor com Desconto: *{fmoeda(valor_com_desc)}*
+• Desconto Aplicado: {desc_aplicado}%
+• 💰 Valor com Desconto: *{fmoeda(valor_com_desc)}*
+
+💳 *CONDIÇÕES DE PAGAMENTO*
+
+1️⃣ À vista com {desc_aplicado}% de desconto:
+• Total: *{fmoeda(valor_com_desc)}*
+  - Entrada (30%): *{fmoeda(valor_com_desc * 0.3)}*
+  - Saldo (70%): *{fmoeda(valor_com_desc * 0.7)}* até 48h antes do embarque
+
+2️⃣ Cartão de Crédito:
+• Até 6x sem juros: *{fmoeda(valor_kit / 6)}* por parcela (valor cheio: *{fmoeda(valor_kit)}*)
+• Até 18x com juros da operadora
 
 🚚 *FRETE*
-• Frete Base: *{fmoeda(valor_frete)}*
-• Adicional (acima de 200km): *{fmoeda(valor_frete_adicional)}*
-• Total do Frete: *{fmoeda(f_total)}*
-• Total com Frete: *{fmoeda(total_com_frete)}*
+• Base: *{fmoeda(valor_frete)}*
+• Adicional (após 200km): *{fmoeda(valor_frete_adicional)}*
+• Total: *{fmoeda(f_total)}*
+
+💰 *VALOR FINAL COM FRETE:* *{fmoeda(total_com_frete)}*
+
+🛠️ *TEMPO ESTIMADO DE MONTAGEM:* *{int(area_kit)} dias úteis*
 
 📌 *O frete é pago diretamente à transportadora até 48h antes do embarque.*
 
-🔧 *Estimativa da casa pronta no local:* *{fmoeda(estimativa_casa_pronta)}*
-
 ━━━━━━━━━━━━━━━━━━━━━━
-📦 *O QUE ESTÁ INCLUSO NO KIT*
-✅ Estrutura completa em madeira Pinus autoclavada (resistência garantida)
-✅ Paredes, forros e estrutura do telhado
-✅ Portas e janelas padrão do projeto
-✅ Ripas, canaletas, rodapés, molduras, ferragens
+📦 *ITENS INCLUSOS NO KIT*
+✅ Estrutura completa em madeira Pinus autoclavada  
+✅ Paredes, forros e estrutura do telhado  
+✅ Portas e janelas padrão  
+✅ Ripas, canaletas, molduras, ferragens  
 ✅ Manual de montagem + suporte técnico
 
-📘 *Montagem descomplicada:* qualquer carpinteiro experiente, mesmo que nunca tenha montado um kit nosso, conseguirá executar a montagem com facilidade.
+📘 *Montagem descomplicada:*  
+Mesmo carpinteiros sem experiência prévia conseguem montar com nosso manual detalhado e suporte técnico da equipe de engenharia.
 
-🔧 Isso porque fornecemos um *manual detalhado, passo a passo*, além de *suporte técnico direto da nossa equipe de engenharia* durante toda a execução da obra.
-
-⚙️ *Não quer se envolver com a obra?* Também oferecemos a opção *Chave na Mão*, com a casa entregue pronta no local. Consulte as condições dessa modalidade.
+🔧 *Quer evitar dor de cabeça com obra?*  
+Temos a opção *Chave na Mão*. Consulte condições!
 
 ━━━━━━━━━━━━━━━━━━━━━━
-📌 *INFORMAÇÕES IMPORTANTES*
-• Itens não inclusos: telhas, vidros, stain, portas personalizadas e mão de obra.
-• Prazo de entrega: *30 a 60 dias* após assinatura do contrato e confirmação do pagamento.
-• *Garantia de 15 anos contra pragas e apodrecimento da madeira.*
-• Proposta válida por *7 dias corridos*.
-"""
+🚫 *ITENS NÃO INCLUSOS*
+• Telhas, vidros, stain, portas especiais e mão de obra
 
+📅 *Entrega:* 30 a 60 dias úteis após assinatura e pagamento  
+🛡️ *Garantia de 15 anos contra pragas e apodrecimento*
+
+⚠️ *Proposta válida por 7 dias corridos*  
+🎯 *Promoção e estoque limitados!*
+"""
     if plantas_encontradas:
         mensagem += "\n📐 *Planta Baixa Disponível para Download*\n"
     else:
         mensagem += "\n❌ Planta Baixa não disponível no momento.\n"
 
-    # Adiciona o link do kit se houver
     if link_kit and str(link_kit).strip().lower() not in ['nan', 'none', '']:
         mensagem += f"\n🔗 *Acesse o kit completo:* {link_kit}"
     else:
         mensagem += "\n❌ Link do kit não disponível."
 
-    st.markdown("### 📝 Copie e envie para o WhatsApp:")
-    st.text_area("Mensagem pronta:", value=mensagem, height=500)
+    return mensagem
 
-    url_whatsapp = f"https://api.whatsapp.com/send?text={quote(mensagem)}"
-    st.markdown("---")
-    st.markdown(f"[👉 Enviar mensagem via WhatsApp Web]({url_whatsapp})", unsafe_allow_html=True)
-    st.info("Clique para abrir o WhatsApp Web com a mensagem pronta. Basta colar o número do cliente e enviar.")
+# Interface principal
+df = carregar_planilha()
+busca = st.text_input("Digite parte do nome do kit:")
+kits_filtrados = df[df['DESCRICAO'].str.contains(busca, case=False, na=False)]
+if len(kits_filtrados) == 0:
+    st.info("Digite parte do nome do kit para buscar.")
+    st.stop()
+
+kit_selecionado = st.selectbox("Selecione um kit:", kits_filtrados['DESCRICAO'])
+kit = kits_filtrados[kits_filtrados['DESCRICAO'] == kit_selecionado].iloc[0]
+
+codigo_kit = str(kit.get('CODIGO')).strip()
+valor_kit = float(kit.get('A VISTA', 0))
+peso_kit = float(kit.get('PESO UND', 0))
+area_kit = float(str(kit.get('AREA', 0)).replace(",", ".").strip())
+link_kit = kit.get('LINK_KIT', '')
+
+nome_cliente = st.text_input("Nome do cliente").strip().title()
+desc_aplicado = st.slider("Desconto aplicado (%)", 0, 12, 0)
+valor_com_desc = valor_kit * (1 - desc_aplicado / 100)
+
+distancia_total = st.number_input("Distância total (em km) da franquia até o local da obra:",
+                                  min_value=0, value=0, step=1)
+valor_frete = 1129 * (peso_kit / 1000)
+valor_frete_adicional = (distancia_total - 200) * 5.5 if distancia_total > 200 else 0.0
+f_total = valor_frete + valor_frete_adicional
+total_com_frete = valor_com_desc + f_total
+
+st.markdown("### 🧾 Resumo da Proposta")
+st.markdown(f"""
+- 💰 **Valor com Desconto:** {fmoeda(valor_com_desc)}
+- 🚚 **Frete Total:** {fmoeda(f_total)}
+- 🛠️ **Tempo Estimado de Montagem:** {int(area_kit)} dias úteis
+- 💵 **Total com Frete:** {fmoeda(total_com_frete)}
+""")
+
+extensoes = [".jpg", ".png", ".jpeg"]
+plantas_encontradas = []
+for ext in extensoes:
+    path = os.path.join("imagens", f"planta-{codigo_kit}{ext}")
+    if os.path.exists(path):
+        plantas_encontradas.append(path)
+        break
+for ext in extensoes:
+    path2 = os.path.join("imagens", f"planta1-{codigo_kit}{ext}")
+    if os.path.exists(path2):
+        plantas_encontradas.append(path2)
+        break
+
+st.markdown("### 📐 Planta Baixa")
+if plantas_encontradas:
+    for img_path in plantas_encontradas:
+        st.image(img_path, width=300)
+        with open(img_path, "rb") as fimg:
+            st.download_button("📥 Baixar Planta", data=fimg, file_name=os.path.basename(img_path))
+else:
+    st.warning("Nenhuma planta baixa encontrada para este kit.")
+
+if st.button("Gerar Proposta para WhatsApp"):
+    if not nome_cliente:
+        st.error("Preencha o nome do cliente.")
+        st.stop()
+    estimativa_casa_pronta = calcular_chave_na_mao(kit_selecionado, area_kit)
+    msg = gerar_mensagem(nome_cliente, kit_selecionado, valor_kit, desc_aplicado, valor_com_desc,
+                         valor_frete, valor_frete_adicional, f_total, total_com_frete,
+                         area_kit, estimativa_casa_pronta, plantas_encontradas, link_kit)
+    st.markdown("### 📝 Mensagem para WhatsApp")
+    st.text_area("Mensagem gerada:", value=msg, height=600)
+    url_whatsapp = f"https://api.whatsapp.com/send?text={quote(msg)}"
+    st.markdown(f"[👉 Enviar pelo WhatsApp Web]({url_whatsapp})", unsafe_allow_html=True)
