@@ -37,23 +37,14 @@ def fmoeda(v):
     except Exception:
         return "Cálculo para o modelo não gerado"
 
-def calcular_chave_na_mao(descricao, area):
-    desc = str(descricao).lower()
-    adicionais = ["stain", "telha", "forro", "assoalho", "parede dupla", "externo", "impregnante"]
-    if re.search(r"camping\s*1", desc):
-        return area * 2200
-    elif re.search(r"camping\s*2", desc):
-        return area * 2400
-    elif re.search(r"camping\s*3", desc):
-        return area * 2400
-    elif "a-frame" in desc or "aframe" in desc:
-        return area * 1700 if area <= 60 else area * 1650
-    elif ("kit" in desc and not any(x in desc for x in ["camping", "a-frame", "aframe"])
-          and not any(adicional in desc for adicional in adicionais)):
-        return area * 2000 if area <= 42 else area * 1900
-    elif ("pop" in desc or "pousada pop" in desc or "tiny house" in desc) and not any(adicional in desc for adicional in adicionais):
-        return area * 2000 if area <= 42 else area * 1900
-    return None
+def calcular_chave_na_mao(valor_kit):
+    """
+    Calcula a estimativa Chave na Mão:
+    Valor do kit sem desconto multiplicado por 2.30.
+    """
+    if valor_kit is None or pd.isna(valor_kit):
+        return None
+    return valor_kit * 2.30
 
 def gerar_mensagem(nome_cliente, kit_selecionado, valor_kit, desc_aplicado,
                    valor_com_desc, valor_frete, valor_frete_adicional,
@@ -194,7 +185,7 @@ if st.button("Gerar Proposta para WhatsApp"):
     if not nome_cliente:
         st.error("Preencha o nome do cliente.")
         st.stop()
-    estimativa_casa_pronta = calcular_chave_na_mao(kit_selecionado, area_kit)
+    estimativa_casa_pronta = calcular_chave_na_mao(valor_kit)
     msg = gerar_mensagem(nome_cliente, kit_selecionado, valor_kit, desc_aplicado, valor_com_desc,
                          valor_frete, valor_frete_adicional, f_total, total_com_frete,
                          area_kit, estimativa_casa_pronta, plantas_encontradas, link_kit)
