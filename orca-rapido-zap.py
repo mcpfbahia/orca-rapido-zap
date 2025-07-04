@@ -98,6 +98,8 @@ def gerar_mensagem(nome_cliente, kit_selecionado, valor_kit, desc_aplicado,
 📘 *Montagem descomplicada:*
 Carpinteiros experientes, mesmo sem prática em chalés de madeira, montam com facilidade usando nosso manual técnico e suporte da engenharia.
 
+*👷 “Ao escolher a opção de comprar o kit de madeiramento e se responsabilizando pela obra, você economiza cerca de 20% no valor total e ainda conquista liberdade para definir cada etapa e contratar a mão de obra que preferir.”*
+
 🔧 *Quer evitar dor de cabeça com obra?*  
 Temos a opção *Chave na Mão*. Consulte condições!
 
