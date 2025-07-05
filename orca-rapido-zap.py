@@ -37,14 +37,17 @@ def fmoeda(v):
     except Exception:
         return "Cálculo para o modelo não gerado"
 
-def calcular_chave_na_mao(valor_kit):
+def calcular_chave_na_mao(valor_kit, area_m2):
     """
     Calcula a estimativa Chave na Mão:
-    Valor do kit sem desconto multiplicado por 2.30.
+    (Valor do Kit ×1,2) + (Área ×900)
     """
     if valor_kit is None or pd.isna(valor_kit):
         return None
-    return valor_kit * 2.30
+    if area_m2 is None or pd.isna(area_m2):
+        return None
+    total = (valor_kit * 1.2) + (area_m2 * 900)
+    return total
 
 def gerar_mensagem(nome_cliente, kit_selecionado, valor_kit, desc_aplicado,
                    valor_com_desc, valor_frete, valor_frete_adicional,
@@ -187,7 +190,7 @@ if st.button("Gerar Proposta para WhatsApp"):
     if not nome_cliente:
         st.error("Preencha o nome do cliente.")
         st.stop()
-    estimativa_casa_pronta = calcular_chave_na_mao(valor_kit)
+    estimativa_casa_pronta = calcular_chave_na_mao(valor_kit, area_kit)
     msg = gerar_mensagem(nome_cliente, kit_selecionado, valor_kit, desc_aplicado, valor_com_desc,
                          valor_frete, valor_frete_adicional, f_total, total_com_frete,
                          area_kit, estimativa_casa_pronta, plantas_encontradas, link_kit)
